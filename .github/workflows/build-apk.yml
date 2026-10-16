@@ -33,15 +33,40 @@ jobs:
       - name: Grant Execute Permission to Gradlew
         run: chmod +x gradlew || true
 
-      - name: Build Debug & Release APK
+      - name: Generate Signing Keystores
         run: |
-          ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
+          # Generate debug.keystore if not present
+          if [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          # Generate release keystore if not present
+          if [ ! -f my-upload-key.jks ]; then
+            keytool -genkey -v -keystore my-upload-key.jks -storepass android -alias upload -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Job Express,O=Job Express,C=BD"
+          fi
 
-      - name: Upload Debug APK Artifact
+      - name: Build Debug & Release APK
+        env:
+          STORE_PASSWORD: android
+          KEY_PASSWORD: android
+        run: |
+          ./gradlew assembleDebug assembleRelease --stacktrace || gradle assembleDebug assembleRelease --stacktrace
+
+      - name: Prepare APK Outputs
+        run: |
+          mkdir -p release-apks
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk release-apks/Job-Express-Attendance-Release.apk
+          fi
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk release-apks/Job-Express-Attendance-Debug.apk
+          fi
+          ls -la release-apks/
+
+      - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Job-Express-Attendance-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Job-Express-Attendance-APKs
+          path: release-apks/*.apk
           if-no-files-found: error
 
       - name: Create GitHub Release
@@ -52,12 +77,13 @@ jobs:
           tag_name: "v1.0.0-${{ github.run_number }}"
           body: |
             ## Job Express Attendance - Official Release 📱
-            - ✅ সম্পূর্ণ বিনামূল্যে ব্যবহারযোগ্য লাইব্রেরি ও কোচিং উপস্থিতি সিস্টেম।
+            - ✅ সম্পূর্ণ বিনামূল্যে ব্যবহারযোগ্য লাইব্রেরি ও কোচিং ডিজিটাল উপস্থিতি ব্যবস্থাপনা।
             - 🔍 QR কোড স্ক্যানার ও ডুপ্লিকেট উপস্থিতি প্রতিরোধ ব্যবস্থা।
             - 📊 গুগল শিটস (Google Sheets) অটোমেশন ও টিচার ড্যাশবোর্ড।
             - 👨‍💻 Developer: Nahid Hasan (University of Barishal).
             
-            **ডাউনলোড নির্দেশ:** নিচে প্রদর্শিত `Job-Express-Attendance.apk` ফাইলে ক্লিক করে আপনার ফোনে সরাসরি ইন্সটল করুন।
-          files: app/build/outputs/apk/debug/app-debug.apk
+            **ডাউনলোড নির্দেশ:**
+            নিচে দেওয়া `Job-Express-Attendance-Release.apk` ফাইলটি সরাসরি আপনার ফোনে ডাউনলোড করে ইন্সটল করুন। কোনো কম্পিউটার প্রয়োজন নেই!
+          files: release-apks/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
