@@ -1,0 +1,6 @@
+{
+  "name": "Job Express Attendance",
+  "description": "Job Express Attendance app for library and coaching students with QR attendance, Google Sheets integration, and teacher dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
